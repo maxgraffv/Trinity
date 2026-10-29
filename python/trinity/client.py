@@ -15,9 +15,10 @@ from typing import Any
 
 import zmq
 
+from .config import DEFAULT_PATH, DEFAULTS, load_config
 from .depth import decode_depth, np
 
-DEFAULT_SERVER = os.environ.get("TRINITY_SERVER", "tcp://127.0.0.1:5558")
+DEFAULT_SERVER = os.environ.get("TRINITY_SERVER", DEFAULTS["server"])
 
 
 @dataclass
@@ -39,10 +40,11 @@ class RemoteController:
     socket. Public methods can be called from any thread.
     """
 
-    def __init__(self, server=DEFAULT_SERVER, token_file="trinity.token", decode_video=False):
+    def __init__(self, server=DEFAULT_SERVER, token_file=DEFAULTS["token_file"], decode_video=False):
         self.server = server
         self.token_file = token_file
         self.decode_video = decode_video
+        self.config = dict(DEFAULTS, server=server, token_file=token_file)
         self.consumer_id = None
         self.grants = []
         self.streams = []
@@ -57,6 +59,14 @@ class RemoteController:
         self._control = queue.Queue()  # replies to auth/request/subscribe
         self._stop = threading.Event()
         self._thread = None
+
+    @classmethod
+    def from_config(cls, path=DEFAULT_PATH, decode_video=False):
+        """Build a client from config.json, see trinity.config."""
+        config = load_config(path)
+        rc = cls(config["server"], config["token_file"], decode_video=decode_video)
+        rc.config = config
+        return rc
 
     def __enter__(self):
         return self.start()
@@ -170,12 +180,15 @@ class RemoteController:
                 raise RelayError(" ".join(msg[1:]))
         raise TimeoutError(f"no {'/'.join(sorted(verbs))} from {self.server}")
 
-    def login(self, name="trinity", grants=("*/*:r",), timeout=None):
+    def login(self, name=None, grants=None, timeout=None):
         """Log in with the saved token, or ask the server operator for access.
 
-        A new request waits until the operator approves it (timeout=None waits
-        forever). The token is then saved to token_file with mode 600.
+        name and grants default to the config. A new request waits until the
+        operator approves it (timeout=None waits forever). The token is then
+        saved to token_file with mode 600.
         """
+        name = name or self.config["name"]
+        grants = grants or self.config["grants"]
         if os.path.exists(self.token_file):
             with open(self.token_file) as f:
                 token = f.read().strip()

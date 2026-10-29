@@ -1,0 +1,8 @@
+{
+  "server": "tcp://myserver:5558",
+  "name": "example-controller",
+  "grants": ["robot-1/video:r", "robot-1/depth:r", "robot-1/imu:rw"],
+  "token_file": "example.token",
+  "subscribe": ["robot-1/depth", "robot-1/imu"],
+  "entity": "robot-1"
+}

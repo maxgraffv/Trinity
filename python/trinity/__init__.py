@@ -2,6 +2,7 @@
 (color, depth, IMU, ...) and sends commands."""
 
 from .client import DEFAULT_SERVER, Frame, RelayError, RemoteController
+from .config import load_config
 from .depth import D435_DEPTH, decode_depth, depth_to_points
 
 __version__ = "0.1.0"
@@ -14,4 +15,5 @@ __all__ = [
     "RemoteController",
     "decode_depth",
     "depth_to_points",
+    "load_config",
 ]

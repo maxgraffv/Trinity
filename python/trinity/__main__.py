@@ -1,5 +1,8 @@
 """Command line client, run as `python -m trinity` or `trinity-remote`.
 
+Settings come from config.json (copy config.example.json), options given on
+the command line override it.
+
 First run, asks the server operator for access:
     trinity-remote --server tcp://myserver:5558 --name goggles --grants "robot-1/*:rw"
 
@@ -10,7 +13,8 @@ Later runs log in with the saved token:
 import argparse
 import time
 
-from .client import DEFAULT_SERVER, RelayError, RemoteController
+from .client import RelayError, RemoteController
+from .config import DEFAULT_PATH, load_config
 from .depth import np
 
 
@@ -44,21 +48,30 @@ def show(rc, entity):
 def main():
     ap = argparse.ArgumentParser(prog="trinity-remote", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--server", default=DEFAULT_SERVER, help="relay address (or TRINITY_SERVER)")
-    ap.add_argument("--name", default="trinity", help="name shown to the operator")
-    ap.add_argument("--grants", nargs="+", default=["robot-1/*:rw"], help="permissions to ask for")
-    ap.add_argument("--token-file", default="trinity.token")
-    ap.add_argument("--subscribe", nargs="+", default=["robot-1/video", "robot-1/depth", "robot-1/imu"])
+    ap.add_argument("--config", default=DEFAULT_PATH, help="settings file (default: config.json if present)")
+    ap.add_argument("--server", help="relay address, e.g. tcp://myserver:5558")
+    ap.add_argument("--name", help="name shown to the operator")
+    ap.add_argument("--grants", nargs="+", help="permissions to ask for, e.g. robot-1/*:rw")
+    ap.add_argument("--token-file")
+    ap.add_argument("--subscribe", nargs="+", help="streams, e.g. robot-1/video robot-1/imu")
+    ap.add_argument("--entity", help="target of --cmd and --show")
     ap.add_argument("--cmd", action="append", default=[], help="JSON command to send, can repeat")
-    ap.add_argument("--entity", default="robot-1", help="target of --cmd and --show")
     ap.add_argument("--show", action="store_true", help="OpenCV windows for color and depth, q or Esc quits")
     args = ap.parse_args()
 
-    rc = RemoteController(args.server, args.token_file, decode_video=args.show).start()
+    config = load_config(args.config)
+    for key in ("server", "name", "grants", "token_file", "subscribe", "entity"):
+        if getattr(args, key) is not None:
+            config[key] = getattr(args, key)
+    args.entity = config["entity"]
+
+    rc = RemoteController(config["server"], config["token_file"], decode_video=args.show)
+    rc.config = config
+    rc.start()
     try:
-        rc.login(args.name, args.grants)
+        rc.login()
         print(f"logged in as {rc.consumer_id}, grants: {' '.join(rc.grants)}")
-        print(f"streams: {' '.join(rc.subscribe(*args.subscribe))}")
+        print(f"streams: {' '.join(rc.subscribe(*config['subscribe']))}")
         for cmd in args.cmd:
             try:
                 print(f"-> {cmd}\n<- {rc.command(args.entity, cmd)}")

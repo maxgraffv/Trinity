@@ -76,5 +76,7 @@ build/
 dist/
 .venv/
 
-# Server access tokens
+# Local settings and server access tokens
+config.json
+!python/examples/config.json
 *.token
