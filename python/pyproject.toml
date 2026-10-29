@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trinity"
+version = "0.1.0"
+description = "Trinity controller library: robot streams and commands over a ZeroMQ relay"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+dependencies = ["pyzmq"]
+
+[project.optional-dependencies]
+depth = ["numpy", "zstandard"]
+show = ["numpy", "zstandard", "opencv-python"]
+
+[project.scripts]
+trinity-remote = "trinity.__main__:main"
+
+[tool.setuptools]
+packages = ["trinity"]
